@@ -2,7 +2,7 @@ import e, { Request, Response } from "express";
 import cors from "cors";
 import { db } from "../lib/db";
 import { likes, pictures, users } from "../lib/db/schema";
-import { eq, sql, and, inArray } from "drizzle-orm";
+import { eq, sql, and, inArray, exists } from "drizzle-orm";
 import { createTransport, SentMessageInfo } from "nodemailer";
 import jwt from "jsonwebtoken";
 import { v4 } from "uuid";
@@ -538,18 +538,18 @@ app.post("/add-like", async (req: Request, res: Response) => {
     const existingLike = await db
       .select()
       .from(likes)
-      .where(and(
-        eq(likes.likerEmail, likerEmail),
-        eq(likes.likedEmail, likedEmail)
-      ))
+      .where(
+        and(eq(likes.likerEmail, likerEmail), eq(likes.likedEmail, likedEmail)),
+      )
       .limit(1);
 
     if (existingLike.length > 0) {
       console.log("\x1b[33m[Info] Like already exists");
-    return;
+      return;
     }
 
-    console.log(      `\x1b[36m[Debug] Received likerEmail: ${likerEmail}, likedEmail: ${likedEmail}`,
+    console.log(
+      `\x1b[36m[Debug] Received likerEmail: ${likerEmail}, likedEmail: ${likedEmail}`,
     );
 
     // Insert into the 'likes' table
@@ -627,14 +627,6 @@ app.post("/mutual-likes", async (req: Request, res: Response) => {
 
     console.log(`\x1b[36m[Debug] Fetching mutual likes for: ${email}`);
 
-    const usersWhoLikedMe = await db
-      .select({ likerEmail: likes.likerEmail })
-      .from(likes)
-      .where(eq(likes.likedEmail, email));
-
-    const likerEmails = usersWhoLikedMe.map(user => user.likerEmail);
-
-    // Then, get all users that the given user has liked and who have also liked them back
     const mutualLikes = await db
       .select({
         name: users.name,
@@ -645,16 +637,26 @@ app.post("/mutual-likes", async (req: Request, res: Response) => {
       .from(likes)
       .innerJoin(users, eq(likes.likedEmail, users.email))
       .innerJoin(pictures, eq(users.email, pictures.email))
-      .where(
-        and(
-          eq(likes.likerEmail, email),
-          inArray(likes.likedEmail, likerEmails)
-        )
-      )
-      .groupBy(users.name, users.instaId, users.phone, pictures.url, users.email, pictures.id);
+      .where(and(eq(likes.likerEmail, email)));
+
+    const mutualLikes2 = await db
+      .select({
+        name: users.name,
+        instaId: users.instaId,
+        phone: users.phone,
+        photoUrl: pictures.url,
+      })
+      .from(likes)
+      .innerJoin(users, eq(likes.likerEmail, users.email))
+      .innerJoin(pictures, eq(users.email, pictures.email))
+      .where(eq(likes.likedEmail, email));
+
+    const commonUsers = mutualLikes.filter((user1) =>
+      mutualLikes2.some((user2) => user1.instaId === user2.instaId),
+    );
 
     // Extracting results from the returned data
-    const results = mutualLikes.map((row) => ({
+    const results = commonUsers.map((row) => ({
       userName: row.name,
       instaId: row.instaId,
       phone: row.phone,
