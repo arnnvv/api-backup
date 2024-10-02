@@ -535,8 +535,21 @@ app.post("/add-like", async (req: Request, res: Response) => {
       });
     }
 
-    console.log(
-      `\x1b[36m[Debug] Received likerEmail: ${likerEmail}, likedEmail: ${likedEmail}`,
+    const existingLike = await db
+      .select()
+      .from(likes)
+      .where(and(
+        eq(likes.likerEmail, likerEmail),
+        eq(likes.likedEmail, likedEmail)
+      ))
+      .limit(1);
+
+    if (existingLike.length > 0) {
+      console.log("\x1b[33m[Info] Like already exists");
+    return;
+    }
+
+    console.log(      `\x1b[36m[Debug] Received likerEmail: ${likerEmail}, likedEmail: ${likedEmail}`,
     );
 
     // Insert into the 'likes' table
