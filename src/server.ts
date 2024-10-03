@@ -374,6 +374,8 @@ app.post("/upload-image", async (req, res) => {
       Bucket: "peeple",
       Key: `uploads/${filename}`,
       ContentType: "image/jpeg",
+      ACL: "public-read",
+
     });
 
     logWithColor(
@@ -427,41 +429,8 @@ app.post("/generate-url", async (req, res) => {
   }
 
   try {
-    const getObjectURL = async (key: string) => {
-      logWithColor(
-        `🌐 Generating signed URL for image key: "${key}"`,
-        "\x1b[36m",
-      ); // Cyan
 
-      try {
-        const url = await getSignedUrl(
-          s3,
-          new GetObjectCommand({
-            Bucket: "peeple",
-            Key: key,
-          }),
-        );
-        logWithColor(
-          `🔗 Successfully generated viewing URL for "${filename}":\n${url}`,
-          "\x1b[35m",
-        ); // Magenta
-        return url;
-      } catch (error: any) {
-        logWithColor(
-          `❌ Error occurred while generating viewing URL for "${filename}": ${error.message}`,
-          "\x1b[31m",
-        ); // Red
-        throw error;
-      }
-    };
-
-    const key = `uploads/${filename}`;
-    const url = await getObjectURL(key);
-
-    logWithColor(
-      `✅ Viewing URL generation for "${filename}" is complete.`,
-      "\x1b[35m",
-    ); // Magenta
+    const url = `https://peeple.s3.ap-south-1.amazonaws.com/uploads/${filename}`;
     res.json({ filename, url });
   } catch (error: any) {
     logWithColor(
