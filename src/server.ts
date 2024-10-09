@@ -375,7 +375,6 @@ app.post("/upload-image", async (req, res) => {
       Key: `uploads/${filename}`,
       ContentType: "image/jpeg",
       ACL: "public-read",
-
     });
 
     logWithColor(
@@ -429,7 +428,6 @@ app.post("/generate-url", async (req, res) => {
   }
 
   try {
-
     const url = `https://peeple.s3.ap-south-1.amazonaws.com/uploads/${filename}`;
     res.json({ filename, url });
   } catch (error: any) {
